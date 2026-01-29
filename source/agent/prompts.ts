@@ -111,6 +111,40 @@ Respond with a JSON object:
   "suggestedFix": "If incorrect, suggest what to change in the SQL"
 }`;
 
+export const SUMMARY_PROMPT = `You are a concise data analyst. Given a user's question and the SQL query results, provide a brief natural language summary of the findings.
+
+## Guidelines
+
+1. **Be concise** - 1-3 sentences max
+2. **Highlight key numbers** - Mention counts, totals, dates, and notable values
+3. **Answer the question directly** - Lead with the answer, then add context
+4. **Handle empty results** - If no rows returned, say so plainly
+5. **No SQL or technical jargon** - Write for a non-technical reader`;
+
+export function buildSummaryPrompt(
+  userQuery: string,
+  sql: string,
+  result: { columns: Array<{ name: string }>; rows: Record<string, unknown>[] }
+): string {
+  const preview = result.rows.slice(0, 20);
+  const resultText = preview.length > 0
+    ? JSON.stringify(preview, null, 2)
+    : '(no rows returned)';
+
+  return `## User's Question
+"${userQuery}"
+
+## SQL Run
+${sql}
+
+## Results (${result.rows.length} row${result.rows.length !== 1 ? 's' : ''})
+Columns: ${result.columns.map(c => c.name).join(', ')}
+${resultText}
+${result.rows.length > 20 ? `(showing 20 of ${result.rows.length} total rows)` : ''}
+
+Summarize these results in plain English.`;
+}
+
 export function buildGeneratePrompt(userQuery: string, previousAttempts?: Array<{ sql: string; error?: string; evaluation?: string }>): string {
   let prompt = `Convert this natural language query to SQL:\n\n"${userQuery}"`;
 

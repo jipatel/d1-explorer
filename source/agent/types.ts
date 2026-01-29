@@ -5,6 +5,7 @@ export interface ConversationTurn {
   sql: string;
   result?: D1Result;
   error?: string;
+  summary?: string;
 }
 
 export type AgentStatus =
@@ -12,6 +13,7 @@ export type AgentStatus =
   | 'generating'
   | 'executing'
   | 'evaluating'
+  | 'summarizing'
   | 'complete'
   | 'error';
 
@@ -31,6 +33,7 @@ export interface AgentState {
   iterations: AgentIteration[];
   finalResult?: D1Result;
   finalError?: string;
+  finalSummary?: string;
   statusMessage: string;
 }
 

@@ -5,8 +5,10 @@ import type { D1Result } from '../db/parser.js';
 import {
   SYSTEM_PROMPT,
   EVALUATION_PROMPT,
+  SUMMARY_PROMPT,
   buildConversationMessages,
   buildEvaluationPrompt,
+  buildSummaryPrompt,
   type ConversationTurnData,
 } from './prompts.js';
 import {
@@ -146,6 +148,31 @@ async function evaluateResult(
   }
 }
 
+async function summarizeResults(
+  client: Anthropic,
+  userQuery: string,
+  sql: string,
+  result: D1Result
+): Promise<string> {
+  const response = await client.messages.create({
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: 256,
+    system: SUMMARY_PROMPT,
+    messages: [
+      {
+        role: 'user',
+        content: buildSummaryPrompt(userQuery, sql, result),
+      },
+    ],
+  });
+
+  const content = response.content[0];
+  if (content.type !== 'text') {
+    throw new Error('Unexpected response type from Claude');
+  }
+  return content.text.trim();
+}
+
 export async function* runAgentLoop(
   query: string,
   options: AgentOptions
@@ -264,10 +291,27 @@ export async function* runAgentLoop(
     yield { type: 'evaluation_complete', state };
 
     if (evaluation.isCorrect || iteration === MAX_ITERATIONS) {
+      // Summarize results
+      state = {
+        ...state,
+        status: 'summarizing',
+        statusMessage: 'Summarizing results...',
+      };
+      emitEvent(state, 'status_change', onEvent);
+      yield { type: 'status_change', state };
+
+      let summary: string | undefined;
+      try {
+        summary = await summarizeResults(client, query, sql, executeResult.response);
+      } catch {
+        // Non-critical - continue without summary
+      }
+
       state = {
         ...state,
         status: 'complete',
         finalResult: executeResult.response,
+        finalSummary: summary,
         statusMessage: evaluation.isCorrect
           ? 'Query completed successfully'
           : `Best result after ${MAX_ITERATIONS} attempts`,

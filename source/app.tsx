@@ -116,6 +116,7 @@ export function App({ config }: AppProps) {
             query,
             sql: finalState!.currentSql!,
             result: finalState!.finalResult,
+            summary: finalState!.finalSummary,
           },
         ]);
       }
@@ -167,6 +168,10 @@ export function App({ config }: AppProps) {
     ? selectedHistoryItem?.error
     : agentState.finalError;
 
+  const panelSummary = showingHistory
+    ? selectedHistoryItem?.summary
+    : agentState.finalSummary;
+
   return (
     <Box flexDirection="column" padding={1}>
       {/* Header */}
@@ -213,6 +218,7 @@ export function App({ config }: AppProps) {
             sql={panelSql}
             result={panelResult}
             error={panelError}
+            summary={panelSummary}
           />
         </Box>
       </Box>

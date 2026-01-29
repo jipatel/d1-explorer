@@ -8,6 +8,7 @@ interface ResultsPanelProps {
   sql?: string;
   result?: D1Result;
   error?: string;
+  summary?: string;
   maxRows?: number;
 }
 
@@ -37,7 +38,7 @@ function calculateColumnWidths(
   });
 }
 
-export function ResultsPanel({ title, query, sql, result, error, maxRows = 30 }: ResultsPanelProps) {
+export function ResultsPanel({ title, query, sql, result, error, summary, maxRows = 30 }: ResultsPanelProps) {
   return (
     <Box
       flexDirection="column"
@@ -51,6 +52,13 @@ export function ResultsPanel({ title, query, sql, result, error, maxRows = 30 }:
         {query && <Text bold color="green">: </Text>}
         {query && <Text>{query}</Text>}
       </Box>
+
+      {/* Summary */}
+      {summary && (
+        <Box marginBottom={1}>
+          <Text color="white">{summary}</Text>
+        </Box>
+      )}
 
       {/* SQL */}
       {sql && (
@@ -68,7 +76,7 @@ export function ResultsPanel({ title, query, sql, result, error, maxRows = 30 }:
       )}
 
       {/* No result yet */}
-      {!result && !error && (
+      {!result && !error && !summary && (
         <Text dimColor>Run a query to see results</Text>
       )}
 

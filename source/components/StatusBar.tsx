@@ -15,6 +15,7 @@ const statusColors: Record<AgentStatus, string> = {
   generating: 'yellow',
   executing: 'blue',
   evaluating: 'magenta',
+  summarizing: 'cyan',
   complete: 'green',
   error: 'red',
 };
@@ -24,6 +25,7 @@ const statusLabels: Record<AgentStatus, string> = {
   generating: 'Generating SQL',
   executing: 'Executing',
   evaluating: 'Evaluating',
+  summarizing: 'Summarizing',
   complete: 'Complete',
   error: 'Error',
 };
