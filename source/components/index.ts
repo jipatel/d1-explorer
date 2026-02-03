@@ -6,3 +6,5 @@ export { ErrorDisplay } from './ErrorDisplay.js';
 export { QueryHistory } from './QueryHistory.js';
 export { HistoryList } from './HistoryList.js';
 export { ResultsPanel } from './ResultsPanel.js';
+export { SetupWizard } from './setup/SetupWizard.js';
+export { SelectList } from './setup/SelectList.js';
