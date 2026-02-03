@@ -35,13 +35,14 @@ export async function applyDirective(
   return content.text.trim();
 }
 
-const SUMMARIZE_SYSTEM_PROMPT = `You summarize technical database schema notes into a short, plain English overview that a non-technical user can understand.
+const SUMMARIZE_SYSTEM_PROMPT = `You produce a concise technical summary of database schema notes. The audience is a developer or DBA.
 
 Rules:
-1. Keep it to 2-4 sentences
-2. No jargon — explain in everyday language
-3. Focus on what the database stores and any important quirks
-4. Return ONLY the summary — no headings, no bullet points, no code`;
+1. List each table with a one-line description of what it stores
+2. Show relationships between tables (foreign keys, JOINs)
+3. Call out any gotchas: cumulative columns, multi-row-per-entity patterns, required aggregations, etc.
+4. Keep it compact — use short bullet points, no full paragraphs
+5. Return ONLY the summary — no markdown code blocks, no SQL`;
 
 export async function summarizeAiNotes(
   aiNotes: string,
@@ -53,7 +54,7 @@ export async function summarizeAiNotes(
 
   const response = await client.messages.create({
     model: 'claude-sonnet-4-20250514',
-    max_tokens: 256,
+    max_tokens: 512,
     system: SUMMARIZE_SYSTEM_PROMPT,
     messages: [{ role: 'user', content: `Summarize these schema notes:\n\n${aiNotes}` }],
   });
