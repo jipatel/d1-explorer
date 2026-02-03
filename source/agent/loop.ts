@@ -1,10 +1,11 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { Config } from '../config/index.js';
+import type { DiscoveredSchema } from '../session/types.js';
 import { executeQuery } from '../db/executor.js';
 import type { D1Result } from '../db/parser.js';
 import {
-  SYSTEM_PROMPT,
-  EVALUATION_PROMPT,
+  buildSystemPrompt,
+  buildEvaluationSystemPrompt,
   SUMMARY_PROMPT,
   buildConversationMessages,
   buildEvaluationPrompt,
@@ -22,6 +23,7 @@ import {
 
 export interface AgentOptions {
   config: Config;
+  schema: DiscoveredSchema;
   conversationHistory?: ConversationTurn[];
   onEvent?: (event: AgentEvent) => void;
 }
@@ -45,6 +47,7 @@ function emitEvent(
 
 async function generateSQL(
   client: Anthropic,
+  schema: DiscoveredSchema,
   userQuery: string,
   previousAttempts: AgentIteration[],
   conversationHistory: ConversationTurn[]
@@ -72,7 +75,7 @@ async function generateSQL(
   const response = await client.messages.create({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 1024,
-    system: SYSTEM_PROMPT,
+    system: buildSystemPrompt(schema),
     messages: messages,
   });
 
@@ -96,6 +99,7 @@ async function generateSQL(
 
 async function evaluateResult(
   client: Anthropic,
+  schema: DiscoveredSchema,
   userQuery: string,
   sql: string,
   result: D1Result
@@ -103,7 +107,7 @@ async function evaluateResult(
   const response = await client.messages.create({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 512,
-    system: EVALUATION_PROMPT,
+    system: buildEvaluationSystemPrompt(schema),
     messages: [
       {
         role: 'user',
@@ -177,7 +181,7 @@ export async function* runAgentLoop(
   query: string,
   options: AgentOptions
 ): AsyncGenerator<AgentEvent, AgentState, void> {
-  const { config, conversationHistory = [], onEvent } = options;
+  const { config, schema, conversationHistory = [], onEvent } = options;
   const client = new Anthropic({ apiKey: config.anthropicApiKey });
 
   let state = createInitialState(query);
@@ -194,7 +198,7 @@ export async function* runAgentLoop(
 
     let sql: string;
     try {
-      sql = await generateSQL(client, query, state.iterations, conversationHistory);
+      sql = await generateSQL(client, schema, query, state.iterations, conversationHistory);
     } catch (error) {
       state = {
         ...state,
@@ -271,7 +275,7 @@ export async function* runAgentLoop(
 
     let evaluation: EvaluationResult;
     try {
-      evaluation = await evaluateResult(client, query, sql, executeResult.response);
+      evaluation = await evaluateResult(client, schema, query, sql, executeResult.response);
     } catch (error) {
       // If evaluation fails, assume the result is good
       evaluation = {

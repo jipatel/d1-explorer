@@ -1,85 +1,46 @@
-export const DATABASE_SCHEMA = `
--- OpticoBot Database Schema (Cloudflare D1 / SQLite)
+import type { DiscoveredSchema } from '../session/types.js';
 
--- customers: Main user table
-CREATE TABLE customers (
-  USER_ID INTEGER PRIMARY KEY,
-  INSERT_DATE TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  EMAIL TEXT NOT NULL,
-  NAME TEXT NOT NULL,
-  STATUS TEXT NOT NULL,           -- e.g. 'active', 'inactive'
-  VERIFIED BOOLEAN DEFAULT FALSE,
-  VERIFIED_DATE TIMESTAMP
-);
+export function buildSchemaText(schema: DiscoveredSchema): string {
+  const parts: string[] = [];
 
--- customer_verification: Email verification codes
-CREATE TABLE customer_verification (
-  id INTEGER PRIMARY KEY,
-  user_id INTEGER NOT NULL REFERENCES customers(USER_ID),
-  verification_code TEXT NOT NULL,
-  insert_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-  valid_until_date DATETIME NOT NULL
-);
+  for (const table of schema.tables) {
+    const colDefs = table.columns.map(col => {
+      let def = `  ${col.name} ${col.type}`;
+      if (col.pk) def += ' PRIMARY KEY';
+      if (col.notnull) def += ' NOT NULL';
+      if (col.defaultValue !== null) def += ` DEFAULT ${col.defaultValue}`;
+      return def;
+    });
 
--- practice_locations: Customer practice/clinic locations
-CREATE TABLE practice_locations (
-  id INTEGER PRIMARY KEY,
-  user_id INTEGER NOT NULL REFERENCES customers(USER_ID),
-  location_id INTEGER NOT NULL,
-  location_name TEXT NOT NULL,
-  print_name_as TEXT,
-  status INTEGER,                 -- numeric status flag
-  insert_date DATETIME DEFAULT CURRENT_TIMESTAMP
-);
+    const fkDefs = table.foreignKeys.map(fk =>
+      `  FOREIGN KEY (${fk.fromColumn}) REFERENCES ${fk.toTable}(${fk.toColumn})`
+    );
 
--- api_keys: API access credentials
-CREATE TABLE api_keys (
-  id INTEGER PRIMARY KEY,
-  api_key TEXT NOT NULL,
-  user_email TEXT NOT NULL REFERENCES customers(EMAIL),
-  name TEXT,                      -- Friendly name for the key
-  created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  last_used_date TIMESTAMP,
-  is_active BOOLEAN DEFAULT TRUE
-);
+    const allDefs = [...colDefs, ...fkDefs].join(',\n');
+    parts.push(`CREATE TABLE ${table.name} (\n${allDefs}\n);`);
+  }
 
--- access_log: Usage tracking (pastes)
-CREATE TABLE access_log (
-  timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-  user_id INTEGER NOT NULL REFERENCES customers(USER_ID),
-  paste_counter INTEGER           -- Running total (cumulative count) - use MAX() to get current value, NOT COUNT()
-);
-`;
+  return parts.join('\n\n');
+}
 
-export const SYSTEM_PROMPT = `You are an expert SQL query generator for the OpticoBot database. Your task is to convert natural language questions into valid SQLite queries.
+export function buildSystemPrompt(schema: DiscoveredSchema): string {
+  const schemaText = buildSchemaText(schema);
 
-${DATABASE_SCHEMA}
+  return `You are an expert SQL query generator. Your task is to convert natural language questions into valid SQLite queries.
 
+## Database Schema
+
+${schemaText}
+
+${schema.aiNotes ? `## Schema Notes\n\n${schema.aiNotes}\n` : ''}
 ## Guidelines
 
 1. **Always use valid SQLite syntax** - D1 uses SQLite under the hood
-2. **Be precise with column names** - Use exact column names from the schema (case-sensitive: USER_ID, EMAIL, etc.)
+2. **Be precise with column names** - Use exact column names from the schema (case-sensitive)
 3. **Handle dates properly** - Dates are stored as ISO strings (TEXT). Use date functions like date(), datetime(), strftime() for comparisons
 4. **Use appropriate JOINs** - Connect tables using foreign key relationships
 5. **Limit results by default** - Add LIMIT 100 unless the user asks for all results
 6. **For counting/aggregation** - Use COUNT(), SUM(), GROUP BY as needed
-
-## Important Table Notes
-
-- **practice_locations**: This table may have multiple rows per user/location with different insert_date values. Always use MAX(insert_date) or a subquery to get the latest record, otherwise you'll get duplicate/outdated results.
-  Example: \`SELECT * FROM practice_locations p1 WHERE insert_date = (SELECT MAX(insert_date) FROM practice_locations p2 WHERE p2.user_id = p1.user_id AND p2.location_id = p1.location_id)\`
-
-- **access_log**: The paste_counter column is a running total (cumulative count), NOT a count of rows. Do NOT use COUNT(*) on this table to get paste counts. Instead, use MAX(paste_counter) to get the current total for a user.
-  Example: \`SELECT user_id, MAX(paste_counter) as total_pastes FROM access_log GROUP BY user_id\`
-
-## Common Query Patterns
-
-- Finding customers: SELECT * FROM customers WHERE ...
-- Getting paste totals: SELECT user_id, MAX(paste_counter) as total_pastes FROM access_log GROUP BY user_id
-- Joining for user details: JOIN customers ON access_log.user_id = customers.USER_ID
-- Date filtering: WHERE timestamp >= '2024-01-01' or WHERE date(timestamp) >= date('2024-01-01')
-- Most active users: ORDER BY total_pastes DESC LIMIT 10
-- Latest practice locations: Use MAX(insert_date) subquery to get current records
 
 ## Conversation Context
 
@@ -88,11 +49,15 @@ You may receive previous queries and their results as context. Use this to under
 ## Response Format
 
 Respond with ONLY the SQL query. Do not include explanations, markdown formatting, or code blocks. Just the raw SQL.`;
+}
 
-export const EVALUATION_PROMPT = `You are evaluating whether a SQL query result correctly answers the user's question.
+export function buildEvaluationSystemPrompt(schema: DiscoveredSchema): string {
+  const schemaText = buildSchemaText(schema);
+
+  return `You are evaluating whether a SQL query result correctly answers the user's question.
 
 ## Database Schema
-${DATABASE_SCHEMA}
+${schemaText}
 
 ## Evaluation Criteria
 
@@ -110,6 +75,7 @@ Respond with a JSON object:
   "explanation": "Brief explanation of your evaluation",
   "suggestedFix": "If incorrect, suggest what to change in the SQL"
 }`;
+}
 
 export const SUMMARY_PROMPT = `You are a concise data analyst. Given a user's question and the SQL query results, provide a brief natural language summary of the findings.
 

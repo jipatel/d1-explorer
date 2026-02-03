@@ -2,8 +2,10 @@
 import React from 'react';
 import { render } from 'ink';
 import meow from 'meow';
-import { App } from './app.js';
-import { loadConfig, validateConfig } from './config/index.js';
+import { Router } from './router.js';
+import { loadConfig } from './config/index.js';
+import { loadSession, listSessions } from './session/storage.js';
+import type { AppSession } from './session/types.js';
 
 const cli = meow(
   `
@@ -13,14 +15,16 @@ const cli = meow(
   Options
     --remote, -r       Use remote D1 database (default: true)
     --local, -l        Use local D1 database
-    --database, -d     Database name (default: opticobot-prod)
+    --database, -d     Database name
     --allow-mutations  Allow INSERT/UPDATE/DELETE queries
+    --setup            Force setup wizard (re-discover schema)
 
   Examples
     $ opticobot
     $ opticobot --local
-    $ opticobot --database opticobot-staging
+    $ opticobot --database my-db
     $ opticobot --allow-mutations
+    $ opticobot --setup
 `,
   {
     importMeta: import.meta,
@@ -43,6 +47,10 @@ const cli = meow(
         type: 'boolean',
         default: false,
       },
+      setup: {
+        type: 'boolean',
+        default: false,
+      },
     },
   }
 );
@@ -58,17 +66,58 @@ async function main() {
       allowMutations: cli.flags.allowMutations,
     });
 
-    const validation = validateConfig(config);
-    if (!validation.valid) {
-      console.error('Configuration errors:');
-      for (const error of validation.errors) {
-        console.error(`  - ${error}`);
+    let initialSession: AppSession | null = null;
+
+    // If --setup is passed, skip loading sessions and force the wizard
+    if (!cli.flags.setup) {
+      // Try to load a saved session
+      const databaseName = cli.flags.database;
+
+      if (databaseName) {
+        // Specific database requested - try to load that session
+        const dbSession = await loadSession(databaseName);
+        if (dbSession) {
+          initialSession = {
+            anthropicApiKey: dbSession.anthropicApiKey,
+            cloudflareAccountId: dbSession.cloudflareAccountId,
+            databaseName: dbSession.databaseName,
+            d1Remote: isRemote,
+            allowMutations: cli.flags.allowMutations,
+            schema: dbSession.schema,
+          };
+        }
+      } else {
+        // No specific database - try to load the first available session
+        const sessions = await listSessions();
+        if (sessions.length > 0) {
+          const dbSession = await loadSession(sessions[0]);
+          if (dbSession) {
+            initialSession = {
+              anthropicApiKey: dbSession.anthropicApiKey,
+              cloudflareAccountId: dbSession.cloudflareAccountId,
+              databaseName: dbSession.databaseName,
+              d1Remote: isRemote,
+              allowMutations: cli.flags.allowMutations,
+              schema: dbSession.schema,
+            };
+          }
+        }
       }
-      console.error('\nPlease check your .env file or environment variables.');
-      process.exit(1);
+
+      // Override API key from env if available (env takes precedence for security)
+      if (initialSession && config.anthropicApiKey) {
+        initialSession.anthropicApiKey = config.anthropicApiKey;
+      }
     }
 
-    render(<App config={config} />);
+    render(
+      <Router
+        initialSession={initialSession}
+        envApiKey={config.anthropicApiKey}
+        d1Remote={isRemote}
+        allowMutations={cli.flags.allowMutations}
+      />
+    );
   } catch (error) {
     if (error instanceof Error) {
       console.error(`Error: ${error.message}`);

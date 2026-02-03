@@ -4,7 +4,8 @@ import { z } from 'zod';
 dotenvConfig();
 
 const ConfigSchema = z.object({
-  anthropicApiKey: z.string().min(1, 'ANTHROPIC_API_KEY is required'),
+  anthropicApiKey: z.string().default(''),
+  cloudflareAccountId: z.string().default(''),
   d1DatabaseName: z.string().default('opticobot'),
   d1Remote: z.boolean().default(true),
   allowMutations: z.boolean().default(false),
@@ -16,11 +17,13 @@ export interface CLIFlags {
   remote?: boolean;
   database?: string;
   allowMutations?: boolean;
+  setup?: boolean;
 }
 
 export function loadConfig(flags: CLIFlags = {}): Config {
   const raw = {
     anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? '',
+    cloudflareAccountId: process.env.CLOUDFLARE_ACCOUNT_ID ?? '',
     d1DatabaseName: flags.database ?? process.env.D1_DATABASE_NAME ?? 'opticobot',
     d1Remote: flags.remote ?? (process.env.D1_REMOTE === undefined ? true : process.env.D1_REMOTE === 'true'),
     allowMutations: flags.allowMutations ?? false,

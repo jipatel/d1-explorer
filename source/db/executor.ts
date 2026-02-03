@@ -73,7 +73,10 @@ export async function executeQuery(options: ExecuteOptions): Promise<ExecuteResu
     let timedOut = false;
 
     const proc = spawn('wrangler', args, {
-      env: { ...process.env },
+      env: {
+        ...process.env,
+        ...(config.cloudflareAccountId ? { CLOUDFLARE_ACCOUNT_ID: config.cloudflareAccountId } : {}),
+      },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
 
