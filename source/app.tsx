@@ -29,6 +29,7 @@ export function App({ session }: AppProps) {
   const [historyIndex, setHistoryIndex] = useState<number | null>(null);
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [commandMessage, setCommandMessage] = useState<string | null>(null);
+  const [suggestionsActive, setSuggestionsActive] = useState(false);
   const [schema, setSchema] = useState<DiscoveredSchema>(session.schema);
   const [notesSummary, setNotesSummary] = useState<string | undefined>(session.schema.aiNotesSummary);
   const summaryGenId = useRef(0);
@@ -43,8 +44,8 @@ export function App({ session }: AppProps) {
   }), [session]);
 
   // Handle /summarize — may need async API call if no cache
-  const handleSummarize = useCallback(async () => {
-    if (notesSummary) {
+  const handleSummarize = useCallback(async (force = false) => {
+    if (notesSummary && !force) {
       setCommandMessage(notesSummary);
       return;
     }
@@ -92,8 +93,13 @@ export function App({ session }: AppProps) {
       return true;
     }
 
+    if (trimmed === '/resummarize') {
+      handleSummarize(true);
+      return true;
+    }
+
     if (trimmed === '/help') {
-      setCommandMessage('Commands: /clear (clear history), /summarize (show schema summary), /help (show commands) | # <note> (update schema notes)');
+      setCommandMessage('Commands: /clear (clear history), /summarize (show schema summary), /resummarize (regenerate summary), /help (show commands) | # <note> (update schema notes)');
       setTimeout(() => setCommandMessage(null), 5000);
       return true;
     }
@@ -150,8 +156,8 @@ export function App({ session }: AppProps) {
       exit();
     }
 
-    // History navigation - only when not processing and history exists
-    if (!isProcessing && conversationHistory.length > 0) {
+    // History navigation - only when not processing, history exists, and no suggestions open
+    if (!isProcessing && conversationHistory.length > 0 && !suggestionsActive) {
       if (key.upArrow) {
         setHistoryIndex(prev =>
           prev === null ? conversationHistory.length - 1 : Math.max(0, prev - 1)
@@ -371,6 +377,7 @@ export function App({ session }: AppProps) {
             }}
             disabled={false}
             history={queryHistory}
+            onSuggestionsVisibleChange={setSuggestionsActive}
           />
         </Box>
       )}
