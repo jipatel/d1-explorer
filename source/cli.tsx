@@ -18,6 +18,7 @@ const cli = meow(
     --database, -d     Database name
     --allow-mutations  Allow INSERT/UPDATE/DELETE queries
     --setup            Force setup wizard (re-discover schema)
+    --list             List saved database sessions
 
   Examples
     $ opticobot
@@ -51,12 +52,36 @@ const cli = meow(
         type: 'boolean',
         default: false,
       },
+      list: {
+        type: 'boolean',
+        default: false,
+      },
     },
   }
 );
 
 async function main() {
   try {
+    // --list: print saved sessions and exit
+    if (cli.flags.list) {
+      const sessions = await listSessions();
+      if (sessions.length === 0) {
+        console.log('No saved sessions found.');
+        process.exit(0);
+      }
+      for (const name of sessions) {
+        const dbSession = await loadSession(name);
+        if (dbSession) {
+          const tableCount = dbSession.schema.tables.length;
+          const updated = new Date(dbSession.updatedAt).toLocaleDateString();
+          console.log(
+            `  ${dbSession.databaseName}  (${dbSession.cloudflareAccountName})  ${tableCount} table${tableCount !== 1 ? 's' : ''}  updated ${updated}`
+          );
+        }
+      }
+      process.exit(0);
+    }
+
     // Determine remote flag (--local overrides --remote)
     const isRemote = !cli.flags.local && cli.flags.remote;
 
