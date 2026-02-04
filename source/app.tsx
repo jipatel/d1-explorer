@@ -343,10 +343,26 @@ export function App({ session, onSwitchDatabase }: AppProps) {
                 <Text>{agentState.query}</Text>
               </Box>
             )}
-            {agentState.currentSql && (
+            {agentState.streamingSql && (
+              <Box marginBottom={1}>
+                <Text dimColor>SQL: </Text>
+                <Text color="yellow">{agentState.streamingSql}</Text>
+              </Box>
+            )}
+            {!agentState.streamingSql && agentState.currentSql && (
               <Box marginBottom={1}>
                 <Text dimColor>SQL: </Text>
                 <Text color="yellow">{agentState.currentSql}</Text>
+              </Box>
+            )}
+            {agentState.iterations.length > 0 && agentState.iterations[agentState.iterations.length - 1]!.evaluation && (
+              <Box marginBottom={1}>
+                <Text dimColor>{agentState.iterations[agentState.iterations.length - 1]!.evaluation}</Text>
+              </Box>
+            )}
+            {agentState.streamingSummary && (
+              <Box marginBottom={1}>
+                <Text>{agentState.streamingSummary}</Text>
               </Box>
             )}
             <StatusBar

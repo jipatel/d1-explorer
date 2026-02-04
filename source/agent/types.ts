@@ -35,10 +35,12 @@ export interface AgentState {
   finalError?: string;
   finalSummary?: string;
   statusMessage: string;
+  streamingSql?: string;
+  streamingSummary?: string;
 }
 
 export interface AgentEvent {
-  type: 'status_change' | 'sql_generated' | 'execution_complete' | 'evaluation_complete' | 'complete' | 'error';
+  type: 'status_change' | 'sql_generated' | 'execution_complete' | 'evaluation_complete' | 'complete' | 'error' | 'stream_delta';
   state: AgentState;
 }
 

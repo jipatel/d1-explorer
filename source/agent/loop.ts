@@ -45,13 +45,26 @@ function emitEvent(
   onEvent?.({ type, state: { ...state } });
 }
 
-async function generateSQL(
+function cleanSql(raw: string): string {
+  let sql = raw.trim();
+  if (sql.startsWith('```sql')) {
+    sql = sql.slice(6);
+  } else if (sql.startsWith('```')) {
+    sql = sql.slice(3);
+  }
+  if (sql.endsWith('```')) {
+    sql = sql.slice(0, -3);
+  }
+  return sql.trim();
+}
+
+async function* generateSQLStreaming(
   client: Anthropic,
   schema: DiscoveredSchema,
   userQuery: string,
   previousAttempts: AgentIteration[],
   conversationHistory: ConversationTurn[]
-): Promise<string> {
+): AsyncGenerator<string, string, void> {
   const attempts = previousAttempts.map(a => ({
     sql: a.sql,
     error: a.error,
@@ -72,29 +85,22 @@ async function generateSQL(
     attempts.length > 0 ? attempts : undefined
   );
 
-  const response = await client.messages.create({
+  const stream = client.messages.stream({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 1024,
     system: buildSystemPrompt(schema),
     messages: messages,
   });
 
-  const content = response.content[0];
-  if (content.type !== 'text') {
-    throw new Error('Unexpected response type from Claude');
+  let text = '';
+  for await (const event of stream) {
+    if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+      text += event.delta.text;
+      yield text;
+    }
   }
 
-  // Clean up the SQL - remove markdown code blocks if present
-  let sql = content.text.trim();
-  if (sql.startsWith('```sql')) {
-    sql = sql.slice(6);
-  } else if (sql.startsWith('```')) {
-    sql = sql.slice(3);
-  }
-  if (sql.endsWith('```')) {
-    sql = sql.slice(0, -3);
-  }
-  return sql.trim();
+  return cleanSql(text);
 }
 
 async function evaluateResult(
@@ -152,13 +158,13 @@ async function evaluateResult(
   }
 }
 
-async function summarizeResults(
+async function* summarizeResultsStreaming(
   client: Anthropic,
   userQuery: string,
   sql: string,
   result: D1Result
-): Promise<string> {
-  const response = await client.messages.create({
+): AsyncGenerator<string, string, void> {
+  const stream = client.messages.stream({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 256,
     system: SUMMARY_PROMPT,
@@ -170,11 +176,15 @@ async function summarizeResults(
     ],
   });
 
-  const content = response.content[0];
-  if (content.type !== 'text') {
-    throw new Error('Unexpected response type from Claude');
+  let text = '';
+  for await (const event of stream) {
+    if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+      text += event.delta.text;
+      yield text;
+    }
   }
-  return content.text.trim();
+
+  return text.trim();
 }
 
 export async function* runAgentLoop(
@@ -198,11 +208,20 @@ export async function* runAgentLoop(
 
     let sql: string;
     try {
-      sql = await generateSQL(client, schema, query, state.iterations, conversationHistory);
+      const sqlGen = generateSQLStreaming(client, schema, query, state.iterations, conversationHistory);
+      let genResult = await sqlGen.next();
+      while (!genResult.done) {
+        state = { ...state, streamingSql: genResult.value };
+        yield { type: 'stream_delta', state };
+        genResult = await sqlGen.next();
+      }
+      sql = genResult.value;
+      state = { ...state, streamingSql: undefined };
     } catch (error) {
       state = {
         ...state,
         status: 'error',
+        streamingSql: undefined,
         finalError: `Failed to generate SQL: ${error instanceof Error ? error.message : String(error)}`,
         statusMessage: 'Failed to generate SQL',
       };
@@ -306,9 +325,18 @@ export async function* runAgentLoop(
 
       let summary: string | undefined;
       try {
-        summary = await summarizeResults(client, query, sql, executeResult.response);
+        const sumGen = summarizeResultsStreaming(client, query, sql, executeResult.response);
+        let sumResult = await sumGen.next();
+        while (!sumResult.done) {
+          state = { ...state, streamingSummary: sumResult.value };
+          yield { type: 'stream_delta', state };
+          sumResult = await sumGen.next();
+        }
+        summary = sumResult.value;
+        state = { ...state, streamingSummary: undefined };
       } catch {
         // Non-critical - continue without summary
+        state = { ...state, streamingSummary: undefined };
       }
 
       state = {
