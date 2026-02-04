@@ -31,11 +31,29 @@ export async function saveSession(session: DbSession): Promise<void> {
 export async function listSessions(): Promise<string[]> {
   try {
     const files = await readdir(SESSIONS_DIR);
-    return files
+    const names = files
       .filter(f => f.endsWith('.json'))
       .map(f => basename(f, '.json'));
+
+    // Load sessions to sort by updatedAt (most recent first)
+    const sessions = await Promise.all(
+      names.map(async name => {
+        const session = await loadSession(name);
+        return { name, updatedAt: session?.updatedAt ?? '' };
+      })
+    );
+    sessions.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    return sessions.map(s => s.name);
   } catch {
     return [];
+  }
+}
+
+export async function touchSession(databaseName: string): Promise<void> {
+  const session = await loadSession(databaseName);
+  if (session) {
+    session.updatedAt = new Date().toISOString();
+    await saveSession(session);
   }
 }
 
