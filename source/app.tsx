@@ -309,7 +309,7 @@ export function App({ session, onSwitchDatabase }: AppProps) {
     <Box flexDirection="column" paddingX={1}>
       {/* Header */}
       <Box justifyContent="space-between">
-        <Text bold color="cyan">OpticoBot</Text>
+        <Text bold color="cyan">D1 Explorer</Text>
         <Text dimColor>
           {dbInfo}
           {session.allowMutations ? ' [mutations]' : ''}

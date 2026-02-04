@@ -6,7 +6,7 @@ dotenvConfig();
 const ConfigSchema = z.object({
   anthropicApiKey: z.string().default(''),
   cloudflareAccountId: z.string().default(''),
-  d1DatabaseName: z.string().default('opticobot'),
+  d1DatabaseName: z.string().default('d1-explorer'),
   d1Remote: z.boolean().default(true),
   allowMutations: z.boolean().default(false),
 });
@@ -24,7 +24,7 @@ export function loadConfig(flags: CLIFlags = {}): Config {
   const raw = {
     anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? '',
     cloudflareAccountId: process.env.CLOUDFLARE_ACCOUNT_ID ?? '',
-    d1DatabaseName: flags.database ?? process.env.D1_DATABASE_NAME ?? 'opticobot',
+    d1DatabaseName: flags.database ?? process.env.D1_DATABASE_NAME ?? 'd1-explorer',
     d1Remote: flags.remote ?? (process.env.D1_REMOTE === undefined ? true : process.env.D1_REMOTE === 'true'),
     allowMutations: flags.allowMutations ?? false,
   };

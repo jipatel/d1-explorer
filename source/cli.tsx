@@ -10,7 +10,7 @@ import type { AppSession } from './session/types.js';
 const cli = meow(
   `
   Usage
-    $ opticobot [options]
+    $ d1-explorer [options]
 
   Options
     --remote, -r       Use remote D1 database (default: true)
@@ -21,11 +21,11 @@ const cli = meow(
     --list             List saved database sessions
 
   Examples
-    $ opticobot
-    $ opticobot --local
-    $ opticobot --database my-db
-    $ opticobot --allow-mutations
-    $ opticobot --setup
+    $ d1-explorer
+    $ d1-explorer --local
+    $ d1-explorer --database my-db
+    $ d1-explorer --allow-mutations
+    $ d1-explorer --setup
 `,
   {
     importMeta: import.meta,

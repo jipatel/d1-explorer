@@ -1,8 +1,8 @@
-# CLAUDE.md - OpticoBot TUI
+# CLAUDE.md - D1 Explorer TUI
 
 ## Project Overview
 
-OpticoBot TUI is a terminal UI for natural language queries against a Cloudflare D1 database. Users type questions like "show me customers who signed up in 2024" and an AI agent generates, executes, and refines SQL until correct.
+D1 Explorer TUI is a terminal UI for natural language queries against a Cloudflare D1 database. Users type questions like "show me customers who signed up in 2024" and an AI agent generates, executes, and refines SQL until correct.
 
 **Key features**:
 - Conversation context is preserved between queries ("filter those by verified", "same but for 2024")
@@ -54,7 +54,7 @@ source/
 │   └── types.ts         # AgentState, AgentEvent, ConversationTurn types
 ├── session/             # Session management and schema discovery
 │   ├── discover.ts      # Auto-discover tables and columns from D1
-│   ├── storage.ts       # Persist sessions to ~/.opticobot/, sorted by last used
+│   ├── storage.ts       # Persist sessions to ~/.d1-explorer/, sorted by last used
 │   ├── directives.ts    # Schema note updates and AI summarization
 │   ├── wrangler.ts      # Wrangler CLI helpers
 │   ├── prompts.ts       # Prompts for directive processing
@@ -63,14 +63,14 @@ source/
 │   ├── executor.ts      # Spawns wrangler d1 execute
 │   └── parser.ts        # Parses D1 JSON output
 ├── history/
-│   └── storage.ts       # Persistent query history (~/.opticobot/)
+│   └── storage.ts       # Persistent query history (~/.d1-explorer/)
 └── config/
     └── index.ts         # Loads .env, validates with zod
 ```
 
 ## Database Schema
 
-The schema is discovered dynamically at startup via `source/session/discover.ts`. Tables and columns are read from D1's `sqlite_master` and `PRAGMA table_info`. The discovered schema is stored in `~/.opticobot/sessions/` and used to build agent prompts.
+The schema is discovered dynamically at startup via `source/session/discover.ts`. Tables and columns are read from D1's `sqlite_master` and `PRAGMA table_info`. The discovered schema is stored in `~/.d1-explorer/sessions/` and used to build agent prompts.
 
 Schema notes (gotchas, relationships, aggregation rules) can be added at runtime with the `# <note>` directive and are persisted with the session.
 
@@ -124,7 +124,7 @@ Optional `.env` file (the setup wizard handles configuration interactively on fi
 ```
 ANTHROPIC_API_KEY=sk-ant-...
 CLOUDFLARE_ACCOUNT_ID=...        # Required if multiple accounts
-D1_DATABASE_NAME=opticobot       # optional, default: opticobot
+D1_DATABASE_NAME=my-database     # optional
 D1_REMOTE=true                   # optional, default: true (remote)
 ```
 
@@ -137,7 +137,7 @@ On first run (or when no saved session exists), the wizard walks through:
 3. **Database** — lists available D1 databases to choose from
 4. **Schema Discovery** — reads tables and columns from D1 automatically
 
-Sessions are saved to `~/.opticobot/sessions/` so subsequent runs skip the wizard. The most recently used database is loaded by default (sessions are sorted by `updatedAt`). The timestamp is touched on every startup and `/switch`.
+Sessions are saved to `~/.d1-explorer/sessions/` so subsequent runs skip the wizard. The most recently used database is loaded by default (sessions are sorted by `updatedAt`). The timestamp is touched on every startup and `/switch`.
 
 ## Safety Features
 

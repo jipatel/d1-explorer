@@ -3,7 +3,7 @@ import { homedir } from 'node:os';
 import { join, dirname } from 'node:path';
 import type { ConversationTurn } from '../agent/types.js';
 
-const HISTORY_DIR = join(homedir(), '.opticobot', 'history');
+const HISTORY_DIR = join(homedir(), '.d1-explorer', 'history');
 
 function historyPath(databaseName: string): string {
   return join(HISTORY_DIR, `${databaseName}.json`);

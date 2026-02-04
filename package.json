@@ -1,11 +1,11 @@
 {
-  "name": "opticobot-tui",
+  "name": "d1-explorer",
   "version": "1.0.0",
-  "description": "AI-powered natural language database query interface for OpticoBot",
+  "description": "AI-powered natural language query interface for Cloudflare D1",
   "type": "module",
   "main": "dist/cli.js",
   "bin": {
-    "opticobot": "dist/cli.js"
+    "d1-explorer": "dist/cli.js"
   },
   "scripts": {
     "build": "tsc",

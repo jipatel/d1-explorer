@@ -1,4 +1,4 @@
-# OpticoBot TUI
+# D1 Explorer
 
 A terminal UI for natural language queries against a Cloudflare D1 database. Ask questions in plain English and get SQL results instantly.
 
@@ -22,7 +22,7 @@ A terminal UI for natural language queries against a Cloudflare D1 database. Ask
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                              OpticoBot TUI                                  │
+│                              D1 Explorer                                    │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │  ┌─────────────────┐    ┌──────────────────┐    ┌───────────────────────┐  │
@@ -58,8 +58,8 @@ A terminal UI for natural language queries against a Cloudflare D1 database. Ask
 
 ```bash
 # Clone the repository
-git clone https://github.com/jipatel/opticobot-tui.git
-cd opticobot-tui
+git clone https://github.com/jipatel/d1-explorer-tui.git
+cd d1-explorer-tui
 
 # Install dependencies
 npm install
@@ -78,30 +78,30 @@ On first run, the setup wizard will prompt you for:
 3. **D1 database** — picked from your available databases
 4. **Schema discovery** — tables and columns are read automatically
 
-The session is saved to `~/.opticobot/` so subsequent runs skip the wizard.
+The session is saved to `~/.d1-explorer/` so subsequent runs skip the wizard.
 
 You can also configure via a `.env` file:
 
 ```env
 ANTHROPIC_API_KEY=sk-ant-...
 CLOUDFLARE_ACCOUNT_ID=...    # Required if you have multiple CF accounts
-D1_DATABASE_NAME=opticobot   # Optional, defaults to "opticobot"
+D1_DATABASE_NAME=my-database # Optional
 ```
 
 ## Usage
 
 ```bash
 # Start the TUI (remote database)
-opticobot
+d1-explorer
 
 # Use local D1 database
-opticobot --local
+d1-explorer --local
 
 # Specify a different database
-opticobot --database my-database
+d1-explorer --database my-database
 
 # Enable write operations (INSERT/UPDATE/DELETE)
-opticobot --allow-mutations
+d1-explorer --allow-mutations
 ```
 
 ## Commands
@@ -130,7 +130,7 @@ Type `/` to see autocomplete suggestions.
 ## Example Session
 
 ```
-OpticoBot                                          opticobot (remote)
+D1 Explorer                                          d1-explorer (remote)
 ──────────────────────────────────────────────────────────────────────
 
   show verified customers                                        1/3
@@ -181,7 +181,7 @@ source/
 │   └── types.ts         # TypeScript types
 ├── session/             # Session management and schema discovery
 │   ├── discover.ts      # Auto-discover tables and columns from D1
-│   ├── storage.ts       # Persist sessions to ~/.opticobot/
+│   ├── storage.ts       # Persist sessions to ~/.d1-explorer/, sorted by last used
 │   ├── directives.ts    # Schema note updates and summarization
 │   ├── wrangler.ts      # Wrangler CLI helpers
 │   └── types.ts         # Session and schema types

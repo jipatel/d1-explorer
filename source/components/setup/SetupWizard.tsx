@@ -91,7 +91,7 @@ export function SetupWizard({ envApiKey, d1Remote, allowMutations, onComplete }:
   return (
     <Box flexDirection="column" padding={1}>
       <Box marginBottom={1}>
-        <Text bold color="cyan">OpticoBot Setup Wizard</Text>
+        <Text bold color="cyan">D1 Explorer Setup</Text>
       </Box>
 
       {/* Step 1: API Key */}

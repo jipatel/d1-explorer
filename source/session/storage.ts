@@ -3,7 +3,7 @@ import { homedir } from 'node:os';
 import { join, basename } from 'node:path';
 import type { DbSession } from './types.js';
 
-const SESSIONS_DIR = join(homedir(), '.opticobot', 'sessions');
+const SESSIONS_DIR = join(homedir(), '.d1-explorer', 'sessions');
 
 function sessionPath(databaseName: string): string {
   return join(SESSIONS_DIR, `${databaseName}.json`);
