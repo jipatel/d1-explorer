@@ -11,6 +11,7 @@ import type { Config } from './config/index.js';
 
 interface AppProps {
   session: AppSession;
+  onSwitchDatabase: () => void;
 }
 
 const INITIAL_STATE: AgentState = {
@@ -20,7 +21,7 @@ const INITIAL_STATE: AgentState = {
   statusMessage: 'Ready',
 };
 
-export function App({ session }: AppProps) {
+export function App({ session, onSwitchDatabase }: AppProps) {
   const { exit } = useApp();
   const [agentState, setAgentState] = useState<AgentState>(INITIAL_STATE);
   const [queryHistory, setQueryHistory] = useState<string[]>([]);
@@ -98,8 +99,13 @@ export function App({ session }: AppProps) {
       return true;
     }
 
+    if (trimmed === '/switch') {
+      onSwitchDatabase();
+      return true;
+    }
+
     if (trimmed === '/help') {
-      setCommandMessage('Commands: /clear (clear history), /summarize (show schema summary), /resummarize (regenerate summary), /help (show commands) | # <note> (update schema notes)');
+      setCommandMessage('Commands: /clear (clear history), /summarize (show schema summary), /resummarize (regenerate summary), /switch (switch database), /help (show commands) | # <note> (update schema notes)');
       setTimeout(() => setCommandMessage(null), 5000);
       return true;
     }
@@ -111,7 +117,7 @@ export function App({ session }: AppProps) {
     }
 
     return false;
-  }, [session.databaseName, handleSummarize]);
+  }, [session.databaseName, handleSummarize, onSwitchDatabase]);
 
   // Load history on mount
   useEffect(() => {
@@ -159,17 +165,20 @@ export function App({ session }: AppProps) {
     // History navigation - only when not processing, history exists, and no suggestions open
     if (!isProcessing && conversationHistory.length > 0 && !suggestionsActive) {
       if (key.upArrow) {
+        setCommandMessage(null);
         setHistoryIndex(prev =>
           prev === null ? conversationHistory.length - 1 : Math.max(0, prev - 1)
         );
       }
       if (key.downArrow) {
+        setCommandMessage(null);
         setHistoryIndex(prev => {
           if (prev === null) return null;
           return prev >= conversationHistory.length - 1 ? null : prev + 1;
         });
       }
       if (key.escape) {
+        setCommandMessage(null);
         setHistoryIndex(null);
       }
     }

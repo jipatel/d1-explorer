@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Text, useInput } from 'ink';
 import TextInput from 'ink-text-input';
 
@@ -6,6 +6,7 @@ const COMMANDS = [
   { label: '/clear', description: 'Clear conversation history' },
   { label: '/summarize', description: 'Show schema summary' },
   { label: '/resummarize', description: 'Regenerate schema summary' },
+  { label: '/switch', description: 'Switch database' },
   { label: '/help', description: 'Show available commands' },
 ];
 
@@ -21,7 +22,6 @@ export function QueryInput({ onSubmit, disabled = false, history = [], onSuggest
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [suggestionsVisible, setSuggestionsVisible] = useState(false);
-  const pendingSubmitRef = useRef<string | null>(null);
 
   useEffect(() => {
     onSuggestionsVisibleChange?.(suggestionsVisible);
@@ -33,16 +33,20 @@ export function QueryInput({ onSubmit, disabled = false, history = [], onSuggest
   };
 
   const handleSubmit = (value: string) => {
-    // If a pending submit was set by useInput (Enter on suggestion), use that instead
-    if (pendingSubmitRef.current !== null) {
-      const command = pendingSubmitRef.current;
-      pendingSubmitRef.current = null;
-      setQuery('');
-      setHistoryIndex(-1);
-      setSuggestionsVisible(false);
-      setSelectedIndex(0);
-      onSubmit(command);
-      return;
+    // If suggestions are visible, submit the selected command
+    if (suggestionsVisible) {
+      const currentFiltered = getFilteredCommands(query);
+      if (currentFiltered.length > 0) {
+        const selected = currentFiltered[selectedIndex];
+        if (selected) {
+          setQuery('');
+          setHistoryIndex(-1);
+          setSuggestionsVisible(false);
+          setSelectedIndex(0);
+          onSubmit(selected.label);
+          return;
+        }
+      }
     }
 
     const trimmed = value.trim();
@@ -93,15 +97,6 @@ export function QueryInput({ onSubmit, disabled = false, history = [], onSuggest
         setQuery(selected.label);
         setSuggestionsVisible(false);
         setSelectedIndex(0);
-      }
-      return;
-    }
-
-    if (key.return && filtered.length > 0) {
-      const selected = filtered[selectedIndex];
-      if (selected) {
-        // Set pending so handleSubmit knows to use this value
-        pendingSubmitRef.current = selected.label;
       }
       return;
     }
