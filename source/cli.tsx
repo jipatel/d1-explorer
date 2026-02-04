@@ -4,7 +4,7 @@ import { render } from 'ink';
 import meow from 'meow';
 import { Router } from './router.js';
 import { loadConfig } from './config/index.js';
-import { loadSession, listSessions } from './session/storage.js';
+import { loadSession, listSessions, touchSession } from './session/storage.js';
 import type { AppSession } from './session/types.js';
 
 const cli = meow(
@@ -132,6 +132,11 @@ async function main() {
       // Override API key from env if available (env takes precedence for security)
       if (initialSession && config.anthropicApiKey) {
         initialSession.anthropicApiKey = config.anthropicApiKey;
+      }
+
+      // Mark as most recently used so it's loaded first next time
+      if (initialSession) {
+        touchSession(initialSession.databaseName).catch(() => {});
       }
     }
 

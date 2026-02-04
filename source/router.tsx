@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { App } from './app.js';
 import { SetupWizard } from './components/setup/SetupWizard.js';
 import { SessionPicker } from './components/setup/SessionPicker.js';
+import { touchSession } from './session/storage.js';
 import type { AppSession, DbSession } from './session/types.js';
 
 type Mode = 'app' | 'setup' | 'picker';
@@ -35,6 +36,7 @@ export function Router({ initialSession, envApiKey, d1Remote, allowMutations }: 
       allowMutations,
       schema: dbSession.schema,
     };
+    touchSession(dbSession.databaseName).catch(() => {});
     setSession(appSession);
     setMode('app');
   }, [d1Remote, allowMutations]);
