@@ -143,13 +143,6 @@ export function QueryInput({ onSubmit, disabled = false, history = [], onSuggest
           )}
         </Box>
       )}
-      {!disabled && !suggestionsVisible && (
-        <Box marginTop={1}>
-          <Text dimColor>
-            Press Enter to submit, Ctrl+C to exit
-          </Text>
-        </Box>
-      )}
     </Box>
   );
 }
