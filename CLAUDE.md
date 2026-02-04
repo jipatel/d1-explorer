@@ -6,8 +6,10 @@ OpticoBot TUI is a terminal UI for natural language queries against a Cloudflare
 
 **Key features**:
 - Conversation context is preserved between queries ("filter those by verified", "same but for 2024")
+- Streaming responses — SQL and summaries appear character-by-character as the AI generates them
 - Setup wizard auto-discovers Cloudflare account, database, and schema on first run
 - Schema is read dynamically from D1 — no hardcoded table definitions
+- Defaults to the most recently used database on startup
 - Slash command autocomplete (type `/` to see available commands)
 
 ## Tech Stack
@@ -47,12 +49,12 @@ source/
 │       ├── DatabaseStep.tsx
 │       └── SchemaDiscoveryStep.tsx
 ├── agent/
-│   ├── loop.ts          # Core agent loop (async generator), accepts conversation history
+│   ├── loop.ts          # Core agent loop (async generator), streams SQL and summaries
 │   ├── prompts.ts       # System prompts built from discovered schema
 │   └── types.ts         # AgentState, AgentEvent, ConversationTurn types
 ├── session/             # Session management and schema discovery
 │   ├── discover.ts      # Auto-discover tables and columns from D1
-│   ├── storage.ts       # Persist sessions to ~/.opticobot/
+│   ├── storage.ts       # Persist sessions to ~/.opticobot/, sorted by last used
 │   ├── directives.ts    # Schema note updates and AI summarization
 │   ├── wrangler.ts      # Wrangler CLI helpers
 │   ├── prompts.ts       # Prompts for directive processing
@@ -75,11 +77,14 @@ Schema notes (gotchas, relationships, aggregation rules) can be added at runtime
 ## Agent Flow
 
 1. User enters natural language query
-2. Claude generates SQL using discovered schema and conversation context
+2. Claude generates SQL using discovered schema and conversation context (streamed to UI)
 3. SQL executes via `wrangler d1 execute --json`
 4. If error: Claude retries with error context (max 3 attempts)
-5. If success: Claude evaluates if results answer the question
-6. Display results and save to conversation history
+5. If success: Claude evaluates if results answer the question (explanation shown in UI)
+6. Claude summarizes results (streamed to UI)
+7. Display final results and save to conversation history
+
+SQL generation and summarization use `client.messages.stream()` and yield `stream_delta` events so text appears in real-time. Evaluation uses `client.messages.create()` (returns JSON, not streamed).
 
 ## Slash Commands
 
@@ -104,6 +109,8 @@ Commands autocomplete when typing `/` — arrow keys navigate, Tab fills, Enter 
 ## Key Files to Modify
 
 - **Change AI model**: Edit model name in `source/agent/loop.ts`
+- **Streaming behavior**: `generateSQLStreaming` and `summarizeResultsStreaming` in `source/agent/loop.ts`
+- **Session ordering**: `listSessions()` and `touchSession()` in `source/session/storage.ts`
 - **Add UI features**: Create components in `source/components/`
 - **Change CLI flags**: Edit `source/cli.tsx`
 - **Conversation history logic**: `source/app.tsx` and `source/agent/prompts.ts`
@@ -130,7 +137,7 @@ On first run (or when no saved session exists), the wizard walks through:
 3. **Database** — lists available D1 databases to choose from
 4. **Schema Discovery** — reads tables and columns from D1 automatically
 
-Sessions are saved to `~/.opticobot/sessions/` so subsequent runs skip the wizard.
+Sessions are saved to `~/.opticobot/sessions/` so subsequent runs skip the wizard. The most recently used database is loaded by default (sessions are sorted by `updatedAt`). The timestamp is touched on every startup and `/switch`.
 
 ## Safety Features
 
