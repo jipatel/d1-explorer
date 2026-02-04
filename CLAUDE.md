@@ -37,9 +37,9 @@ source/
 ├── app.tsx              # Root React component, state management, conversation history
 ├── components/          # Ink UI components
 │   ├── QueryInput.tsx   # Text input with slash command autocomplete
-│   ├── HistoryList.tsx  # Left panel - query history
-│   ├── ResultsPanel.tsx # Right panel - SQL & results
-│   ├── StatusBar.tsx    # Agent status with spinner
+│   ├── ResultsView.tsx  # Full-width results display (summary, SQL, table, errors)
+│   ├── Divider.tsx      # Terminal-width horizontal rule
+│   ├── StatusBar.tsx    # Inline processing status with spinner
 │   └── setup/           # Setup wizard steps
 │       ├── SetupWizard.tsx
 │       ├── ApiKeyStep.tsx
@@ -88,6 +88,7 @@ Schema notes (gotchas, relationships, aggregation rules) can be added at runtime
 | `/clear`       | Clear conversation history     |
 | `/summarize`   | Show schema summary            |
 | `/resummarize` | Regenerate schema summary      |
+| `/switch`      | Switch database                |
 | `/help`        | Show available commands        |
 | `# <note>`     | Update schema notes via AI     |
 
