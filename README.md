@@ -13,7 +13,7 @@ A terminal UI for natural language queries against a Cloudflare D1 database. Ask
 - **Setup Wizard** - Interactive first-run flow discovers your Cloudflare account, database, and schema automatically
 - **Dynamic Schema Discovery** - Tables and columns are read from D1 at startup — no hardcoded schema
 - **Slash Command Autocomplete** - Type `/` to see commands with arrow-key navigation, Tab to fill, Enter to submit
-- **Side-by-Side UI** - History panel on the left, results on the right
+- **Full-Width Layout** - Content-focused design with history as pagination (↑↓ to browse)
 - **Persistent History** - Query history saved between sessions
 - **Smart Retries** - AI automatically fixes SQL errors (up to 3 attempts)
 - **Safe by Default** - Read-only mode prevents accidental data mutations
@@ -30,18 +30,18 @@ A terminal UI for natural language queries against a Cloudflare D1 database. Ask
 │  │   (React/Ink)   │    │                  │    │                       │  │
 │  │                 │    │  ┌────────────┐  │    │  ┌─────────────────┐  │  │
 │  │ ┌─────────────┐ │    │  │  Claude    │  │    │  │   customers     │  │  │
-│  │ │ History     │ │◄───┤  │  Sonnet    │  │    │  │   api_keys      │  │  │
-│  │ │ Panel       │ │    │  │  API       │  │    │  │   access_log    │  │  │
-│  │ └─────────────┘ │    │  └─────┬──────┘  │    │  │   practice_     │  │  │
-│  │ ┌─────────────┐ │    │        │         │    │  │   locations     │  │  │
-│  │ │ Results     │ │    │  ┌─────▼──────┐  │    │  └────────▲────────┘  │  │
-│  │ │ Panel       │ │    │  │ SQL Gen &  │  │    │           │           │  │
-│  │ └─────────────┘ │    │  │ Validation │  │    │           │           │  │
-│  │ ┌─────────────┐ │    │  └─────┬──────┘  │    └───────────┼───────────┘  │
-│  │ │ Query       │ │    │        │         │                │              │
-│  │ │ Input       │─┼────►  ┌─────▼──────┐  │    ┌───────────┴───────────┐  │
-│  │ └─────────────┘ │    │  │ Executor   │──┼────►   wrangler d1        │  │
-│  └─────────────────┘    │  │ (wrangler) │  │    │   execute --json     │  │
+│  │ │ Content     │ │◄───┤  │  Sonnet    │  │    │  │   api_keys      │  │  │
+│  │ │ Area        │ │    │  │  API       │  │    │  │   access_log    │  │  │
+│  │ │ (full-width)│ │    │  └─────┬──────┘  │    │  │   practice_     │  │  │
+│  │ └─────────────┘ │    │        │         │    │  │   locations     │  │  │
+│  │ ┌─────────────┐ │    │  ┌─────▼──────┐  │    │  └────────▲────────┘  │  │
+│  │ │ Query       │ │    │  │ SQL Gen &  │  │    │           │           │  │
+│  │ │ Input       │─┼────►  │ Validation │  │    │           │           │  │
+│  │ └─────────────┘ │    │  └─────┬──────┘  │    └───────────┼───────────┘  │
+│  └─────────────────┘    │        │         │                │              │
+│                         │  ┌─────▼──────┐  │    ┌───────────┴───────────┐  │
+│                         │  │ Executor   │──┼────►   wrangler d1        │  │
+│                         │  │ (wrangler) │  │    │   execute --json     │  │
 │                         │  └────────────┘  │    └───────────────────────┘  │
 │                         └──────────────────┘                               │
 │                                                                             │
@@ -111,6 +111,7 @@ opticobot --allow-mutations
 | `/clear`       | Clear query history            |
 | `/summarize`   | Show schema summary            |
 | `/resummarize` | Regenerate schema summary      |
+| `/switch`      | Switch database                |
 | `/help`        | Show available commands        |
 | `# <note>`     | Update schema notes via AI     |
 
@@ -129,21 +130,24 @@ Type `/` to see autocomplete suggestions.
 ## Example Session
 
 ```
-OpticoBot TUI - Natural Language Database Queries
-Database: opticobot (remote)
+OpticoBot                                          opticobot (remote)
+──────────────────────────────────────────────────────────────────────
 
-┌─ History ─────────────────┐ ┌─ Query 1: show verified customers ──────────┐
-│ > 1. show verified cust.. │ │ SQL: SELECT * FROM customers                │
-│   2. filter by 2024       │ │      WHERE VERIFIED = TRUE                  │
-│   3. count by status      │ │                                             │
-│                           │ │ 15 rows                                     │
-│ ↑↓ select • Esc close     │ │ USER_ID | EMAIL          | NAME             │
-└───────────────────────────┘ │ --------+----------------+----------------- │
-                              │ 1       | john@email.com | John Smith       │
-                              │ 2       | jane@email.com | Jane Doe         │
-                              └──────────────────────────────────────────────┘
+  show verified customers                                        1/3
 
-> show me their practice locations
+  There are 15 verified customers in the database.
+
+  SQL: SELECT * FROM customers WHERE VERIFIED = TRUE
+
+  USER_ID  EMAIL            NAME
+  ───────  ───────────────  ─────────────────
+  1        john@email.com   John Smith
+  2        jane@email.com   Jane Doe
+
+  15 rows
+
+──────────────────────────────────────────────────────────────────────
+> show me their practice locations              ↑↓ history · /help
 ```
 
 ## Tech Stack
@@ -161,10 +165,10 @@ source/
 ├── router.tsx           # Routes between setup wizard and main app
 ├── app.tsx              # Root component, state management
 ├── components/          # Ink UI components
-│   ├── HistoryList.tsx  # Left panel - query history
-│   ├── ResultsPanel.tsx # Right panel - SQL & results
+│   ├── Divider.tsx      # Terminal-width horizontal rule
+│   ├── ResultsView.tsx  # Full-width results display
 │   ├── QueryInput.tsx   # Text input with autocomplete
-│   ├── StatusBar.tsx    # Processing status
+│   ├── StatusBar.tsx    # Inline processing status
 │   └── setup/           # Setup wizard steps
 │       ├── SetupWizard.tsx
 │       ├── ApiKeyStep.tsx
