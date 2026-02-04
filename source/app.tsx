@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { Box, Text, useApp, useInput } from 'ink';
-import { QueryInput, StatusBar, HistoryList, ResultsPanel } from './components/index.js';
+import { QueryInput, StatusBar, ResultsView, Divider } from './components/index.js';
 import { runAgentLoop } from './agent/loop.js';
 import { loadHistory, saveHistory } from './history/storage.js';
 import { applyDirective, summarizeAiNotes, updateSessionAiNotes, updateSessionAiNotesSummary } from './session/index.js';
@@ -261,133 +261,160 @@ export function App({ session, onSwitchDatabase }: AppProps) {
   }, []);
 
   const currentIteration = agentState.iterations.length;
-  const showStatusBar = agentState.status !== 'idle' || isProcessing;
 
-  // Determine what to show in results panel
+  // Determine what to show in the content area
   const selectedHistoryItem = historyIndex !== null ? conversationHistory[historyIndex] : null;
   const showingHistory = selectedHistoryItem !== null;
 
-  // Results panel content
-  const panelTitle = showingHistory
-    ? `Query ${historyIndex! + 1}`
-    : agentState.status === 'complete'
-      ? 'Results'
-      : agentState.status === 'error'
-        ? 'Error'
-        : 'Results';
-
-  const panelQuery = showingHistory
+  const contentQuery = showingHistory
     ? selectedHistoryItem?.query
     : agentState.query;
 
-  const panelSql = showingHistory
+  const contentSql = showingHistory
     ? selectedHistoryItem?.sql
     : agentState.currentSql;
 
-  const panelResult = showingHistory
+  const contentResult = showingHistory
     ? selectedHistoryItem?.result
     : agentState.finalResult;
 
-  const panelError = showingHistory
+  const contentError = showingHistory
     ? selectedHistoryItem?.error
     : agentState.finalError;
 
-  const panelSummary = showingHistory
+  const contentSummary = showingHistory
     ? selectedHistoryItem?.summary
     : agentState.finalSummary;
 
+  const hasContent = contentQuery || contentSql || contentResult || contentError || contentSummary;
+  const isIdle = !isProcessing && !hasContent && !commandMessage;
+
+  // Database info string
+  const dbInfo = `${session.databaseName} (${session.d1Remote ? 'remote' : 'local'})`;
+
+  // History position indicator
+  const historyIndicator = showingHistory
+    ? `${historyIndex! + 1}/${conversationHistory.length}`
+    : conversationHistory.length > 0 && (agentState.status === 'complete' || agentState.status === 'error')
+      ? `${conversationHistory.length}/${conversationHistory.length}`
+      : undefined;
+
+  // Right-aligned hints for the input bar
+  const hints: string[] = [];
+  if (conversationHistory.length > 0) hints.push('↑↓ history');
+  hints.push('/help');
+  const hintsText = hints.join(' · ');
+
   return (
-    <Box flexDirection="column" padding={1}>
+    <Box flexDirection="column" paddingX={1}>
       {/* Header */}
-      <Box marginBottom={1}>
-        <Text bold color="cyan">
-          OpticoBot TUI
-        </Text>
-        <Text dimColor> - Natural Language Database Queries</Text>
-      </Box>
-
-      {/* Database info */}
-      <Box marginBottom={1}>
+      <Box justifyContent="space-between">
+        <Text bold color="cyan">OpticoBot</Text>
         <Text dimColor>
-          Database: {session.databaseName} ({session.d1Remote ? 'remote' : 'local'})
-          {session.allowMutations && <Text color="yellow"> [mutations enabled]</Text>}
+          {dbInfo}
+          {session.allowMutations ? ' [mutations]' : ''}
         </Text>
       </Box>
 
-      {/* Status bar */}
-      {showStatusBar && (
-        <Box marginBottom={1}>
-          <StatusBar
-            status={agentState.status}
-            message={agentState.statusMessage}
-            iterationCount={currentIteration > 0 ? currentIteration : undefined}
-            maxIterations={3}
-          />
-        </Box>
-      )}
+      <Divider />
 
-      {/* Side-by-side layout: History | Results */}
-      <Box flexDirection="row" marginBottom={1}>
-        {/* History list (left panel) */}
-        <HistoryList
-          history={conversationHistory}
-          selectedIndex={historyIndex}
-        />
+      {/* Content area */}
+      <Box flexDirection="column" paddingY={1} paddingX={1}>
+        {/* Idle state — welcome message */}
+        {isIdle && (
+          <Box flexDirection="column">
+            <Text>Ask a question about your database.</Text>
+            <Text dimColor>Try "show all customers" or "how many records?"</Text>
+          </Box>
+        )}
 
-        {/* Results panel (right panel) */}
-        <Box marginLeft={1} flexGrow={1}>
-          <ResultsPanel
-            title={panelTitle}
-            query={panelQuery}
-            sql={panelSql}
-            result={panelResult}
-            error={panelError}
-            summary={panelSummary}
-          />
-        </Box>
+        {/* Command message (e.g. /summarize, /help, /clear feedback) */}
+        {commandMessage && !isProcessing && (
+          <Box flexDirection="column">
+            <Text color="yellow">{commandMessage}</Text>
+          </Box>
+        )}
+
+        {/* Processing state */}
+        {isProcessing && (
+          <Box flexDirection="column">
+            {agentState.query && (
+              <Box marginBottom={1}>
+                <Text>{agentState.query}</Text>
+              </Box>
+            )}
+            {agentState.currentSql && (
+              <Box marginBottom={1}>
+                <Text dimColor>SQL: </Text>
+                <Text color="yellow">{agentState.currentSql}</Text>
+              </Box>
+            )}
+            <StatusBar
+              status={agentState.status}
+              message={agentState.statusMessage}
+              iterationCount={currentIteration > 0 ? currentIteration : undefined}
+              maxIterations={3}
+            />
+          </Box>
+        )}
+
+        {/* Results / History view */}
+        {!isProcessing && !commandMessage && hasContent && (
+          <Box flexDirection="column">
+            {/* Query line with position indicator */}
+            {contentQuery && (
+              <Box marginBottom={1} justifyContent="space-between">
+                <Text>{contentQuery}</Text>
+                {historyIndicator && (
+                  <Text dimColor>{historyIndicator}</Text>
+                )}
+              </Box>
+            )}
+
+            <ResultsView
+              sql={contentSql}
+              result={contentResult}
+              error={contentError}
+              summary={contentSummary}
+            />
+          </Box>
+        )}
       </Box>
 
-      {/* Current query display while processing */}
-      {isProcessing && agentState.query && (
-        <Box>
-          <Text color="cyan" bold>{'> '}</Text>
-          <Text>{agentState.query}</Text>
-        </Box>
-      )}
+      <Divider />
 
-      {/* Command feedback */}
-      {commandMessage && (
-        <Box marginBottom={1}>
-          <Text color="yellow">{commandMessage}</Text>
-        </Box>
-      )}
-
-      {/* Query input */}
+      {/* Input bar */}
       {!isProcessing && (
-        <Box>
-          <QueryInput
-            onSubmit={(input) => {
-              const trimmed = input.trim();
-              if (trimmed.startsWith('#')) {
-                const directive = trimmed.slice(1).trim();
-                if (directive) {
-                  handleDirective(directive);
+        <Box justifyContent="space-between">
+          <Box flexShrink={1}>
+            <QueryInput
+              onSubmit={(input) => {
+                const trimmed = input.trim();
+                if (trimmed.startsWith('#')) {
+                  const directive = trimmed.slice(1).trim();
+                  if (directive) {
+                    handleDirective(directive);
+                  }
+                  return;
                 }
-                return;
-              }
-              if (handleCommand(input)) {
-                return;
-              }
-              if (agentState.status === 'complete' || agentState.status === 'error') {
-                handleNewQuery();
-              }
-              setHistoryIndex(null);
-              handleQuerySubmit(input);
-            }}
-            disabled={false}
-            history={queryHistory}
-            onSuggestionsVisibleChange={setSuggestionsActive}
-          />
+                if (handleCommand(input)) {
+                  return;
+                }
+                if (agentState.status === 'complete' || agentState.status === 'error') {
+                  handleNewQuery();
+                }
+                setCommandMessage(null);
+                setHistoryIndex(null);
+                handleQuerySubmit(input);
+              }}
+              disabled={false}
+              history={queryHistory}
+              onSuggestionsVisibleChange={setSuggestionsActive}
+            />
+          </Box>
+          <Box flexShrink={0}>
+            <Text dimColor>{hintsText}</Text>
+          </Box>
         </Box>
       )}
     </Box>

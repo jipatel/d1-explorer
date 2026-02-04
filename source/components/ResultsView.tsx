@@ -2,9 +2,7 @@ import React from 'react';
 import { Box, Text } from 'ink';
 import type { D1Result } from '../db/parser.js';
 
-interface ResultsPanelProps {
-  title: string;
-  query?: string;
+interface ResultsViewProps {
   sql?: string;
   result?: D1Result;
   error?: string;
@@ -26,7 +24,7 @@ function formatCell(value: unknown, maxWidth: number): string {
 function calculateColumnWidths(
   columns: Array<{ name: string }>,
   rows: Record<string, unknown>[],
-  maxWidth: number = 25
+  maxWidth: number = 30
 ): number[] {
   return columns.map(col => {
     const headerWidth = col.name.length;
@@ -38,25 +36,13 @@ function calculateColumnWidths(
   });
 }
 
-export function ResultsPanel({ title, query, sql, result, error, summary, maxRows = 30 }: ResultsPanelProps) {
+export function ResultsView({ sql, result, error, summary, maxRows = 30 }: ResultsViewProps) {
   return (
-    <Box
-      flexDirection="column"
-      borderStyle="single"
-      borderColor="green"
-      paddingX={1}
-      flexGrow={1}
-    >
-      <Box marginBottom={1}>
-        <Text bold color="green">{title}</Text>
-        {query && <Text bold color="green">: </Text>}
-        {query && <Text>{query}</Text>}
-      </Box>
-
+    <Box flexDirection="column">
       {/* Summary */}
       {summary && (
         <Box marginBottom={1}>
-          <Text color="white">{summary}</Text>
+          <Text>{summary}</Text>
         </Box>
       )}
 
@@ -71,28 +57,23 @@ export function ResultsPanel({ title, query, sql, result, error, summary, maxRow
       {/* Error */}
       {error && (
         <Box>
-          <Text color="red">Error: {error}</Text>
+          <Text color="red">✗ {error}</Text>
         </Box>
-      )}
-
-      {/* No result yet */}
-      {!result && !error && !summary && (
-        <Text dimColor>Run a query to see results</Text>
-      )}
-
-      {/* Empty result */}
-      {result && result.rows.length === 0 && (
-        <Text dimColor>No rows returned</Text>
       )}
 
       {/* Results table */}
       {result && result.rows.length > 0 && (
         <Box flexDirection="column">
-          <Text dimColor>{result.rows.length} row{result.rows.length !== 1 ? 's' : ''}</Text>
-          <Box marginTop={1} flexDirection="column">
-            {renderTable(result, maxRows)}
+          {renderTable(result, maxRows)}
+          <Box marginTop={1}>
+            <Text dimColor>{result.rows.length} row{result.rows.length !== 1 ? 's' : ''}</Text>
           </Box>
         </Box>
+      )}
+
+      {/* Empty result */}
+      {result && result.rows.length === 0 && (
+        <Text dimColor>No rows returned</Text>
       )}
     </Box>
   );
@@ -103,17 +84,17 @@ function renderTable(result: D1Result, maxRows: number) {
   const columnWidths = calculateColumnWidths(result.columns, displayRows);
 
   const headerRow = result.columns
-    .map((col, i) => col.name.padEnd(columnWidths[i]))
-    .join(' | ');
+    .map((col, i) => col.name.padEnd(columnWidths[i]!))
+    .join('  ');
 
-  const separator = columnWidths.map(w => '-'.repeat(w)).join('-+-');
+  const separator = columnWidths.map(w => '─'.repeat(w)).join('──');
 
   const dataRows = displayRows.map((row, rowIndex) => (
     <Box key={rowIndex}>
       <Text>
         {result.columns
-          .map((col, i) => formatCell(row[col.name], columnWidths[i]).padEnd(columnWidths[i]))
-          .join(' | ')}
+          .map((col, i) => formatCell(row[col.name], columnWidths[i]!).padEnd(columnWidths[i]!))
+          .join('  ')}
       </Text>
     </Box>
   ));
