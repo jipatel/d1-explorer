@@ -66,3 +66,25 @@ export async function summarizeAiNotes(
 
   return content.text.trim();
 }
+
+export async function* summarizeAiNotesStreaming(
+  aiNotes: string,
+  apiKey: string,
+): AsyncGenerator<string, void, void> {
+  if (!aiNotes) return;
+
+  const client = new Anthropic({ apiKey });
+
+  const stream = client.messages.stream({
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: 512,
+    system: SUMMARIZE_SYSTEM_PROMPT,
+    messages: [{ role: 'user', content: `Summarize these schema notes:\n\n${aiNotes}` }],
+  });
+
+  for await (const event of stream) {
+    if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+      yield event.delta.text;
+    }
+  }
+}

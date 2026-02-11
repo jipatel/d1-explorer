@@ -11,4 +11,4 @@ export type {
 export { loadSession, saveSession, listSessions, deleteSession, updateSessionAiNotes, updateSessionAiNotesSummary } from './storage.js';
 export { getAccounts, listD1Databases } from './wrangler.js';
 export { discoverSchema, type DiscoveryEvent } from './discover.js';
-export { applyDirective, summarizeAiNotes } from './directives.js';
+export { applyDirective, summarizeAiNotesStreaming } from './directives.js';

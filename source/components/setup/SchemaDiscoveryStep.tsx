@@ -15,6 +15,7 @@ interface SchemaDiscoveryStepProps {
 export function SchemaDiscoveryStep({ config, apiKey, onComplete, onError }: SchemaDiscoveryStepProps) {
   const [status, setStatus] = useState('Starting schema discovery...');
   const [tables, setTables] = useState<DiscoveredTable[]>([]);
+  const [streamingText, setStreamingText] = useState('');
   const [done, setDone] = useState(false);
 
   useEffect(() => {
@@ -32,6 +33,14 @@ export function SchemaDiscoveryStep({ config, apiKey, onComplete, onError }: Sch
 
           if (event.type === 'table_discovered' && event.table) {
             setTables(prev => [...prev, event.table!]);
+          }
+
+          if (event.type === 'stream_delta' && event.delta) {
+            setStreamingText(prev => prev + event.delta);
+          }
+
+          if (event.type === 'analyzing') {
+            setStreamingText('');
           }
 
           if (event.type === 'complete' && event.schema) {
@@ -78,6 +87,12 @@ export function SchemaDiscoveryStep({ config, apiKey, onComplete, onError }: Sch
               {'  '}{table.name} ({table.columns.length} columns{table.foreignKeys.length > 0 ? `, ${table.foreignKeys.length} FK` : ''})
             </Text>
           ))}
+        </Box>
+      )}
+
+      {streamingText && (
+        <Box flexDirection="column" marginTop={1}>
+          <Text dimColor>{streamingText}</Text>
         </Box>
       )}
     </Box>

@@ -4,11 +4,12 @@ import type { Config } from '../config/index.js';
 import type { D1Result } from '../db/parser.js';
 import type { DiscoveredColumn, DiscoveredForeignKey, DiscoveredTable, DiscoveredSchema } from './types.js';
 import { SCHEMA_ANALYSIS_PROMPT } from './prompts.js';
-import { summarizeAiNotes } from './directives.js';
+import { summarizeAiNotesStreaming } from './directives.js';
 
 export interface DiscoveryEvent {
-  type: 'progress' | 'table_discovered' | 'analyzing' | 'complete' | 'error';
+  type: 'progress' | 'table_discovered' | 'analyzing' | 'stream_delta' | 'complete' | 'error';
   message: string;
+  delta?: string;
   table?: DiscoveredTable;
   schema?: DiscoveredSchema;
 }
@@ -97,22 +98,29 @@ export async function* discoverSchema(config: Config, apiKey: string): AsyncGene
     yield { type: 'table_discovered', message: `Discovered: ${tableName} (${columns.length} columns)`, table };
   }
 
-  // Step 3: AI analysis of the full schema
+  // Step 3: AI analysis of the full schema (streamed)
   yield { type: 'analyzing', message: 'Analyzing schema with AI...' };
 
   let aiNotes = '';
   try {
-    aiNotes = await analyzeSchema(tables, apiKey);
+    for await (const delta of analyzeSchemaStreaming(tables, apiKey)) {
+      aiNotes += delta;
+      yield { type: 'stream_delta', message: 'Analyzing schema with AI...', delta };
+    }
   } catch {
     aiNotes = 'AI analysis unavailable.';
   }
 
-  // Step 4: Generate plain English summary of notes
+  // Step 4: Generate plain English summary of notes (streamed)
   yield { type: 'analyzing', message: 'Generating schema summary...' };
 
   let aiNotesSummary: string | undefined;
   try {
-    aiNotesSummary = await summarizeAiNotes(aiNotes, apiKey);
+    aiNotesSummary = '';
+    for await (const delta of summarizeAiNotesStreaming(aiNotes, apiKey)) {
+      aiNotesSummary += delta;
+      yield { type: 'stream_delta', message: 'Generating schema summary...', delta };
+    }
   } catch {
     // Non-critical — summary can be generated later
   }
@@ -151,11 +159,11 @@ function buildDDL(tables: DiscoveredTable[]): string {
   return parts.join('\n\n');
 }
 
-async function analyzeSchema(tables: DiscoveredTable[], apiKey: string): Promise<string> {
+async function* analyzeSchemaStreaming(tables: DiscoveredTable[], apiKey: string): AsyncGenerator<string, void, void> {
   const client = new Anthropic({ apiKey });
   const ddl = buildDDL(tables);
 
-  const response = await client.messages.create({
+  const stream = client.messages.stream({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 1024,
     system: SCHEMA_ANALYSIS_PROMPT,
@@ -167,9 +175,9 @@ async function analyzeSchema(tables: DiscoveredTable[], apiKey: string): Promise
     ],
   });
 
-  const content = response.content[0];
-  if (content.type !== 'text') {
-    return '';
+  for await (const event of stream) {
+    if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+      yield event.delta.text;
+    }
   }
-  return content.text.trim();
 }

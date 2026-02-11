@@ -3,7 +3,7 @@ import { Box, Text, useApp, useInput } from 'ink';
 import { QueryInput, StatusBar, ResultsView, Divider } from './components/index.js';
 import { runAgentLoop } from './agent/loop.js';
 import { loadHistory, saveHistory } from './history/storage.js';
-import { applyDirective, summarizeAiNotes, updateSessionAiNotes, updateSessionAiNotesSummary } from './session/index.js';
+import { applyDirective, summarizeAiNotesStreaming, updateSessionAiNotes, updateSessionAiNotesSummary } from './session/index.js';
 import type { AgentState, ConversationTurn } from './agent/types.js';
 import type { AppSession } from './session/types.js';
 import type { DiscoveredSchema } from './session/types.js';
@@ -62,11 +62,14 @@ export function App({ session, onSwitchDatabase }: AppProps) {
       statusMessage: 'Generating schema summary...',
     }));
     try {
-      const summary = await summarizeAiNotes(schema.aiNotes, session.anthropicApiKey);
+      let summary = '';
+      for await (const delta of summarizeAiNotesStreaming(schema.aiNotes, session.anthropicApiKey)) {
+        summary += delta;
+        setCommandMessage(summary);
+      }
       setNotesSummary(summary);
       setSchema(prev => ({ ...prev, aiNotesSummary: summary }));
       await updateSessionAiNotesSummary(session.databaseName, summary);
-      setCommandMessage(summary);
     } catch (error) {
       setCommandMessage(`Failed to generate summary: ${error instanceof Error ? error.message : String(error)}`);
       setTimeout(() => setCommandMessage(null), 4000);
@@ -137,16 +140,18 @@ export function App({ session, onSwitchDatabase }: AppProps) {
   // Background regeneration of aiNotes summary
   const regenerateSummaryInBackground = useCallback((aiNotes: string) => {
     const genId = ++summaryGenId.current;
-    summarizeAiNotes(aiNotes, session.anthropicApiKey)
-      .then(summary => {
-        // Only apply if no newer generation was started
-        if (genId === summaryGenId.current) {
-          setNotesSummary(summary);
-          setSchema(prev => ({ ...prev, aiNotesSummary: summary }));
-          updateSessionAiNotesSummary(session.databaseName, summary).catch(() => {});
-        }
-      })
-      .catch(() => {});
+    (async () => {
+      let summary = '';
+      for await (const delta of summarizeAiNotesStreaming(aiNotes, session.anthropicApiKey)) {
+        if (genId !== summaryGenId.current) return;
+        summary += delta;
+      }
+      if (genId === summaryGenId.current) {
+        setNotesSummary(summary);
+        setSchema(prev => ({ ...prev, aiNotesSummary: summary }));
+        await updateSessionAiNotesSummary(session.databaseName, summary);
+      }
+    })().catch(() => {});
   }, [session.anthropicApiKey, session.databaseName]);
 
   // On mount: if aiNotes exist but no cached summary, generate in background
