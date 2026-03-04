@@ -1,5 +1,7 @@
 # D1 Explorer
 
+Read the full [LinkedIn](https://www.linkedin.com/pulse/i-built-terminal-app-lets-you-talk-your-cloudflare-d1-jignesh-patel-eupuc) post.
+
 A terminal UI for natural language queries against a Cloudflare D1 database. Ask questions in plain English and get SQL results instantly.
 
 ![Node.js](https://img.shields.io/badge/Node.js-18+-green)
